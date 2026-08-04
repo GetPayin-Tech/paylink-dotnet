@@ -1,0 +1,35 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFrameworks>net8.0;netstandard2.0</TargetFrameworks>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
+
+    <PackageId>Paylink</PackageId>
+    <Version>0.1.0</Version>
+    <Authors>GetPayIn</Authors>
+    <Description>Official server-side .NET SDK for the PayLink / GetPayIn payment integration API (checkouts, payment operations, card tokens, recurring mandates, webhook verification).</Description>
+    <PackageTags>paylink;getpayin;payments;payment-gateway;checkout;webhooks;cybersource</PackageTags>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageProjectUrl>https://github.com/GetPayin-Tech/paylink-dotnet</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/GetPayin-Tech/paylink-dotnet</RepositoryUrl>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="../../README.md" Pack="true" PackagePath="\" Condition="Exists('../../README.md')" />
+  </ItemGroup>
+
+  <!-- net8.0 ships System.Text.Json in the shared framework; only older targets need the package. -->
+  <ItemGroup Condition="'$(TargetFramework)' == 'netstandard2.0'">
+    <PackageReference Include="System.Text.Json" Version="8.0.5" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Paylink.Tests" />
+  </ItemGroup>
+
+</Project>
