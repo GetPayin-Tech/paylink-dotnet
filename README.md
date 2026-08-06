@@ -92,6 +92,22 @@ var checkout = await _paylink.Invoices.CreateAsync(new CreateInvoiceParams
 });
 ```
 
+Then embed the returned checkout URL on your page. The `<iframe>` needs `allow="payment *"` so Apple Pay and Google Pay work inside the frame, and your page must listen for the completion message — in iframe mode the checkout signals the parent via `postMessage` instead of redirecting:
+
+```html
+<iframe src="CHECKOUT_URL" allow="payment *"
+        style="width:100%;min-height:640px;border:0" title="Secure checkout"></iframe>
+<script>
+  addEventListener('message', function (e) {
+    if (e.origin !== 'https://pay.getpayin.com') return; // your API base origin
+    if (!e.data || e.data.type !== 'paylink_payment') return;
+    window.location.href = e.data.success ? '/thank-you' : '/checkout?failed=1';
+  });
+</script>
+```
+
+> The embedding page's origin must exactly match your integration's registered **Origin**, or the browser blocks framing and the message never arrives.
+
 Each service interface (`IInvoices`, `IPayments`, `IVcc`, `ICards`, `IRecurring`,
 `IWebhooks`) is registered too, so you can inject just the one you need.
 
