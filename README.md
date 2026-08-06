@@ -68,6 +68,7 @@ public sealed class CheckoutController : ControllerBase
             Currency = "USD",
             RedirectionUrl = "https://shop.example.com/return",
             WebhookUrl = "https://shop.example.com/webhooks/paylink",
+            // Iframe = true, // optional: enable embedded (iframe) checkout
         });
 
         return Redirect(checkout.CheckoutUrl);

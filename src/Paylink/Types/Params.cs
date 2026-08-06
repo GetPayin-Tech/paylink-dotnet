@@ -36,6 +36,8 @@ namespace Paylink
         public string? OrderDetails { get; set; }
 
         public string? PaymentMode { get; set; }
+
+        public bool? Iframe { get; set; }
     }
 
     /// <summary>
