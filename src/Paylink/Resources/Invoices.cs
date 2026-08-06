@@ -42,6 +42,7 @@ namespace Paylink
                 { "webhook_url", parameters.WebhookUrl },
                 { "order_details", parameters.OrderDetails },
                 { "payment_mode", parameters.PaymentMode },
+                { "iframe", parameters.Iframe },
             };
 
             var data = await Api

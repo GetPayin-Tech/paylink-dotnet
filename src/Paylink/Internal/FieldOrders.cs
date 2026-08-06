@@ -59,6 +59,7 @@ namespace Paylink.Internal
                 new FieldSpec("webhook_url"),
                 new FieldSpec("order_details"),
                 new FieldSpec("payment_mode", false),
+                new FieldSpec("iframe", false),
             });
 
         public static readonly EndpointSpec PaymentVoid = new EndpointSpec(
