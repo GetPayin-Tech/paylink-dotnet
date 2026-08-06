@@ -68,12 +68,28 @@ public sealed class CheckoutController : ControllerBase
             Currency = "USD",
             RedirectionUrl = "https://shop.example.com/return",
             WebhookUrl = "https://shop.example.com/webhooks/paylink",
-            // Iframe = true, // optional: enable embedded (iframe) checkout
         });
 
         return Redirect(checkout.CheckoutUrl);
     }
 }
+```
+
+For an **embedded checkout**, set `Iframe = true` and render `checkout.CheckoutUrl`
+inside an `<iframe>` instead of redirecting (sent in the request body but excluded
+from the signature, like `PaymentMode`):
+
+```csharp
+var checkout = await _paylink.Invoices.CreateAsync(new CreateInvoiceParams
+{
+    FirstName = "John",
+    LastName = "Doe",
+    Email = "john@example.com",
+    OrderTitle = "Gold Plan",
+    OrderAmount = "250.00",
+    Currency = "USD",
+    Iframe = true, // enable embedded (iframe) checkout
+});
 ```
 
 Each service interface (`IInvoices`, `IPayments`, `IVcc`, `ICards`, `IRecurring`,
