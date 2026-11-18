@@ -11,7 +11,24 @@ namespace Paylink
     {
         private static readonly string[] AlwaysSigned = { "success", "invoice_id", "invoice_status", "message" };
 
-        private static readonly string[] OptionalSigned = { "mandate_id", "external_reference", "subscription_status" };
+        /// <summary>The fields a recurring mandate adds, in the order the server adds them.</summary>
+        private static readonly string[] MandateSigned = { "mandate_id", "external_reference", "subscription_status" };
+
+        /// <summary>
+        /// The fields a card-token event adds, in the order the server adds them.
+        /// <c>card_token.created</c> and <c>card_token.failed</c> are the only events that carry a
+        /// tokenisation, and both are on by default for every integration. The server writes
+        /// <c>tokenization_id</c> and <c>external_reference</c> first, then the card's details —
+        /// and only when the card was actually vaulted, so a failed tokenisation signs the first
+        /// two alone. Order matters because the signature is a separator-less concatenation: on an
+        /// event with no mandate, <c>external_reference</c> is signed AFTER <c>tokenization_id</c>,
+        /// not at the position it holds on a subscription event.
+        /// </summary>
+        private static readonly string[] TokenizationSigned =
+        {
+            "tokenization_id", "external_reference", "card_token", "card_brand", "card_last4",
+            "card_exp_month", "card_exp_year",
+        };
 
         private readonly ResolvedConfig _config;
 
@@ -70,24 +87,48 @@ namespace Paylink
             }
         }
 
+        /// <summary>
+        /// Rebuilds the expected signature the way the server assembles it.
+        /// <c>PaymentIntegrationWebhookJob</c> appends a whole block at a time — the mandate fields
+        /// when the invoice belongs to one, the tokenisation fields when the event is about a card
+        /// — and PHP keeps a key at the position it was first written. A block is therefore gated
+        /// on its own leading field rather than on the individual fields inside it:
+        /// <c>external_reference</c> belongs to whichever block introduced it, and is never signed
+        /// twice.
+        /// </summary>
         private static string ComputeSignature(JsonElement payload, string hashToken)
         {
+            var keys = new List<string>(AlwaysSigned);
+
+            foreach (var block in new[] { MandateSigned, TokenizationSigned })
+            {
+                if (!HasField(payload, block[0]))
+                {
+                    continue;
+                }
+
+                foreach (var key in block)
+                {
+                    if (HasField(payload, key) && !keys.Contains(key))
+                    {
+                        keys.Add(key);
+                    }
+                }
+            }
+
             var values = new List<string>();
 
-            foreach (var key in AlwaysSigned)
+            foreach (var key in keys)
             {
                 values.Add(FieldToWire(payload, key));
             }
 
-            foreach (var key in OptionalSigned)
-            {
-                if (payload.ValueKind == JsonValueKind.Object && payload.TryGetProperty(key, out _))
-                {
-                    values.Add(FieldToWire(payload, key));
-                }
-            }
-
             return Signature.Build(values, hashToken);
+        }
+
+        private static bool HasField(JsonElement payload, string name)
+        {
+            return payload.ValueKind == JsonValueKind.Object && payload.TryGetProperty(name, out _);
         }
 
         private static string FieldToWire(JsonElement payload, string name)
@@ -131,7 +172,13 @@ namespace Paylink
                 Json.StrOrNull(payload, "external_reference"),
                 Json.StrOrNull(payload, "subscription_status"),
                 Json.StrOrNull(payload, "event_triggered_at"),
-                Json.StrOrNull(payload, "timezone"));
+                Json.StrOrNull(payload, "timezone"),
+                Json.StrOrNull(payload, "tokenization_id"),
+                Json.StrOrNull(payload, "card_token"),
+                Json.StrOrNull(payload, "card_brand"),
+                Json.StrOrNull(payload, "card_last4"),
+                Json.StrOrNull(payload, "card_exp_month"),
+                Json.StrOrNull(payload, "card_exp_year"));
         }
 
         private static JsonElement Parse(string payload)

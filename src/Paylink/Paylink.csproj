@@ -9,7 +9,7 @@
     <NoWarn>$(NoWarn);CS1591</NoWarn>
 
     <PackageId>Paylink</PackageId>
-    <Version>0.2.0</Version>
+    <Version>0.3.0</Version>
     <Authors>GetPayIn</Authors>
     <Description>Official server-side .NET SDK for the PayLink / GetPayIn payment integration API (checkouts, payment operations, card tokens, recurring mandates, webhook verification).</Description>
     <PackageTags>paylink;getpayin;payments;payment-gateway;checkout;webhooks;cybersource</PackageTags>
