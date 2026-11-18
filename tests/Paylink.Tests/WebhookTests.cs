@@ -112,6 +112,74 @@ namespace Paylink.Tests
             Assert.Throws<PaylinkException>(() => _client.Webhooks.Verify("{not json"));
         }
 
+        [Fact]
+        public void VerifiesCardTokenCreatedAndExposesTheSavedCard()
+        {
+            var json = Signed(CardTokenCreated());
+
+            var webhookEvent = _client.Webhooks.Verify(json);
+
+            Assert.Equal(WebhookEventType.CardTokenCreated, webhookEvent.Event);
+            Assert.Equal("TKZ-4f21", webhookEvent.TokenizationId);
+            Assert.Equal("CRD-9a07", webhookEvent.CardToken);
+            Assert.Equal("VISA", webhookEvent.CardBrand);
+            Assert.Equal("4242", webhookEvent.CardLast4);
+            Assert.Equal("12", webhookEvent.CardExpMonth);
+            Assert.Equal("2029", webhookEvent.CardExpYear);
+            Assert.Equal("cust-42", webhookEvent.ExternalReference);
+        }
+
+        [Fact]
+        public void VerifiesCardTokenFailedWhichCarriesNoCard()
+        {
+            var json = Signed(new Dictionary<string, object?>
+            {
+                { "event", "card_token.failed" },
+                { "success", 0 },
+                { "invoice_id", 7782L },
+                { "invoice_status", "UNPAID" },
+                { "message", "The card could not be stored for future payments." },
+                { "tokenization_id", "TKZ-4f22" },
+                { "external_reference", "cust-43" },
+            });
+
+            var webhookEvent = _client.Webhooks.Verify(json);
+
+            Assert.Equal(WebhookEventType.CardTokenFailed, webhookEvent.Event);
+            Assert.False(webhookEvent.Success);
+            Assert.Equal("TKZ-4f22", webhookEvent.TokenizationId);
+            Assert.Null(webhookEvent.CardToken);
+        }
+
+        [Fact]
+        public void RejectsATamperedCard()
+        {
+            var payload = CardTokenCreated();
+            Signed(payload);
+            payload["card_last4"] = "1111";
+
+            Assert.False(_client.Webhooks.IsValid(JsonSerializer.Serialize(payload)));
+        }
+
+        private static Dictionary<string, object?> CardTokenCreated()
+        {
+            return new Dictionary<string, object?>
+            {
+                { "event", "card_token.created" },
+                { "success", 1 },
+                { "invoice_id", 7781L },
+                { "invoice_status", "REVERSED" },
+                { "message", "Card stored for future payments." },
+                { "tokenization_id", "TKZ-4f21" },
+                { "external_reference", "cust-42" },
+                { "card_token", "CRD-9a07" },
+                { "card_brand", "VISA" },
+                { "card_last4", "4242" },
+                { "card_exp_month", "12" },
+                { "card_exp_year", "2029" },
+            };
+        }
+
         private static string Signed(Dictionary<string, object?> payload, string hashToken = Hash)
         {
             payload["signature"] = Signature.Build(WebhookValues(payload), hashToken);
@@ -128,11 +196,32 @@ namespace Paylink.Tests
                 Wire(payload, "message"),
             };
 
-            foreach (var key in new[] { "mandate_id", "external_reference", "subscription_status" })
+            var blocks = new[]
             {
-                if (payload.ContainsKey(key))
+                new[] { "mandate_id", "external_reference", "subscription_status" },
+                new[]
                 {
-                    values.Add(Wire(payload, key));
+                    "tokenization_id", "external_reference", "card_token", "card_brand",
+                    "card_last4", "card_exp_month", "card_exp_year",
+                },
+            };
+
+            var signed = new List<string>();
+
+            foreach (var block in blocks)
+            {
+                if (!payload.ContainsKey(block[0]))
+                {
+                    continue;
+                }
+
+                foreach (var key in block)
+                {
+                    if (payload.ContainsKey(key) && !signed.Contains(key))
+                    {
+                        signed.Add(key);
+                        values.Add(Wire(payload, key));
+                    }
                 }
             }
 
